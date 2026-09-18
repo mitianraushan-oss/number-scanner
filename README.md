@@ -30,12 +30,30 @@ Then tap the browser menu → **Add to Home screen** so it behaves like a real a
 1. **Start camera**
 2. Frame the number inside the dashed green box.
 3. **Scan once** — or turn on **Auto scan** to read continuously every 2 s.
-4. Tap **Dial** to jump to the phone keypad, or **Copy** to paste anywhere.
+4. Act on each number with one tap:
+
+| Action | What it does |
+| --- | --- |
+| **Dial** | Opens the native keypad with the number filled in |
+| **Save** | Asks for a name and downloads a `.vcf` — open it to add the contact |
+| **WhatsApp** | Opens a WhatsApp chat with that number |
+| **Mail** | Opens your mail app with the number in the body |
+| **Share** | Native share sheet (WhatsApp, Telegram, Gmail, Notes…) |
+| **Copy** | Copies the digits to the clipboard |
+
+   **Save all to contacts** exports every scanned number as one `.vcf` file.
 5. No camera? Use **Pick image** to OCR a screenshot or gallery photo.
+
+## Country code
+
+The **+** box next to "Detected numbers" (default `91`) is used for WhatsApp links when a
+scanned number has no country code of its own. It is remembered between visits.
+`080-4567-8901` becomes `wa.me/918045678901`; a number already starting with `+` is left alone.
 
 ## Notes
 
 - `tel:` pre-fills the dialer; it never places a call by itself. That is an OS rule on both Android and iOS — no browser or app can auto-dial without you pressing the call button.
+- Saving a contact goes through a `.vcf` download rather than writing to your address book directly — browsers have no API for that. Tapping the downloaded file imports it.
 - OCR runs entirely in the browser (Tesseract.js). Nothing is uploaded anywhere.
 - Digits `0/O` and `1/l/I` are commonly confused by OCR, so they are auto-corrected to digits. Check the number before calling.
 - Accepted numbers are 7–15 digits, optional leading `+`, with spaces/dashes/brackets tolerated.
@@ -47,3 +65,4 @@ Then tap the browser menu → **Add to Home screen** so it behaves like a real a
 | Scan box size/position | `CROP` in [app.js](app.js) — must match `.reticle` in [styles.css](styles.css) |
 | Auto-scan speed | `LIVE_INTERVAL_MS` in [app.js](app.js) |
 | Number length rules | `extractNumbers()` in [app.js](app.js) |
+| WhatsApp number format | `toWhatsAppNumber()` in [app.js](app.js) |

@@ -32,7 +32,17 @@
     </section>
 
     <section class="results">
-      <h2>Detected numbers</h2>
+      <div class="results-head">
+        <h2>Detected numbers</h2>
+        <label class="cc" title="Used for WhatsApp when a number has no country code">
+          <span>+</span>
+          <input id="dialCode" type="tel" inputmode="numeric" maxlength="4" value="91" aria-label="Default country code" />
+        </label>
+      </div>
+      <div id="bulk" class="bulk" hidden>
+        <button id="saveAllBtn">Save all to contacts</button>
+        <button id="clearBtn">Clear list</button>
+      </div>
       <ul id="list" class="list"></ul>
       <p id="empty" class="empty">Nothing yet. Point the camera at a phone number and tap <b>Scan once</b>.</p>
     </section>

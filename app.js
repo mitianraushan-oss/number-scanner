@@ -10,10 +10,15 @@ const startBtn = document.getElementById('startBtn');
 const scanBtn = document.getElementById('scanBtn');
 const liveBtn = document.getElementById('liveBtn');
 const fileInput = document.getElementById('fileInput');
+const dialCodeInput = document.getElementById('dialCode');
+const bulkEl = document.getElementById('bulk');
+const saveAllBtn = document.getElementById('saveAllBtn');
+const clearBtn = document.getElementById('clearBtn');
 
 // Matches the reticle box in styles.css so we only OCR what the user framed.
 const CROP = { x: 0.08, y: 0.38, w: 0.84, h: 0.24 };
 const LIVE_INTERVAL_MS = 2000;
+const DIAL_CODE_KEY = 'number-scanner.dialCode';
 
 let stream = null;
 let worker = null;
@@ -166,22 +171,134 @@ function addNumbers(numbers) {
   if (added) render();
 }
 
+function dialCode() {
+  return dialCodeInput.value.replace(/\D/g, '') || '91';
+}
+
+/** WhatsApp links need a full international number with no '+', zeros or separators. */
+function toWhatsAppNumber(key) {
+  const digits = key.replace(/\D/g, '');
+  if (key.startsWith('+')) return digits;
+  const local = digits.replace(/^0+/, '');
+  // Anything longer than a local subscriber number already carries a country code.
+  return local.length > 10 ? local : dialCode() + local;
+}
+
+function escapeVCard(value) {
+  return String(value).replace(/([\\,;])/g, '\\$1').replace(/\r?\n/g, '\\n');
+}
+
+function buildVCard(entries) {
+  const stamp = new Date().toLocaleString();
+  return entries
+    .map(([key, display, name]) => {
+      const fn = escapeVCard(name || display);
+      return [
+        'BEGIN:VCARD',
+        'VERSION:3.0',
+        `N:;${fn};;;`,
+        `FN:${fn}`,
+        `TEL;TYPE=CELL:${escapeVCard(key)}`,
+        `NOTE:Scanned with Number Scanner on ${escapeVCard(stamp)}`,
+        'END:VCARD',
+      ].join('\r\n');
+    })
+    .join('\r\n');
+}
+
+/** Downloads a .vcf — opening it hands the contact to the phone's address book. */
+function downloadVCard(filename, entries) {
+  const blob = new Blob([buildVCard(entries)], { type: 'text/vcard;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  setStatus('contact file saved');
+}
+
+async function shareNumber(key, display) {
+  const text = `Phone number: ${display}`;
+  if (navigator.share) {
+    try {
+      await navigator.share({ title: 'Phone number', text });
+      return;
+    } catch (err) {
+      if (err.name === 'AbortError') return;
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(key);
+    setStatus('copied — paste to share');
+  } catch {
+    setStatus('sharing unavailable');
+  }
+}
+
 function render() {
   listEl.innerHTML = '';
   emptyEl.hidden = found.size > 0;
+  bulkEl.hidden = found.size === 0;
 
   for (const [key, display] of [...found.entries()].reverse()) {
     const li = document.createElement('li');
 
+    const numRow = document.createElement('div');
+    numRow.className = 'num-row';
+
     const span = document.createElement('span');
     span.className = 'num';
     span.textContent = display;
+
+    const del = document.createElement('button');
+    del.className = 'remove';
+    del.textContent = '✕';
+    del.setAttribute('aria-label', 'Remove ' + display);
+    del.addEventListener('click', () => {
+      found.delete(key);
+      render();
+    });
+
+    numRow.append(span, del);
+
+    const actions = document.createElement('div');
+    actions.className = 'actions';
 
     // tel: hands the number to the native dialer with the keypad pre-filled.
     const call = document.createElement('a');
     call.className = 'call';
     call.href = 'tel:' + key;
     call.textContent = 'Dial';
+
+    const save = document.createElement('button');
+    save.textContent = 'Save';
+    save.addEventListener('click', () => {
+      const name = prompt('Save contact as:', display);
+      if (name === null) return;
+      downloadVCard(`${key.replace(/\D/g, '') || 'contact'}.vcf`, [[key, display, name.trim() || display]]);
+    });
+
+    const wa = document.createElement('a');
+    wa.className = 'wa';
+    wa.href = 'https://wa.me/' + toWhatsAppNumber(key);
+    wa.target = '_blank';
+    wa.rel = 'noopener noreferrer';
+    wa.textContent = 'WhatsApp';
+
+    const mail = document.createElement('a');
+    mail.href =
+      'mailto:?subject=' +
+      encodeURIComponent('Phone number') +
+      '&body=' +
+      encodeURIComponent(`${display}\n\nTap to call: tel:${key}`);
+    mail.textContent = 'Mail';
+
+    const share = document.createElement('button');
+    share.textContent = 'Share';
+    share.addEventListener('click', () => shareNumber(key, display));
 
     const copy = document.createElement('button');
     copy.textContent = 'Copy';
@@ -195,15 +312,8 @@ function render() {
       }
     });
 
-    const del = document.createElement('button');
-    del.textContent = '✕';
-    del.setAttribute('aria-label', 'Remove ' + display);
-    del.addEventListener('click', () => {
-      found.delete(key);
-      render();
-    });
-
-    li.append(span, call, copy, del);
+    actions.append(call, save, wa, mail, share, copy);
+    li.append(numRow, actions);
     listEl.appendChild(li);
   }
 }
@@ -233,6 +343,23 @@ scanBtn.addEventListener('click', () => {
 });
 
 liveBtn.addEventListener('click', toggleLive);
+
+dialCodeInput.value = localStorage.getItem(DIAL_CODE_KEY) || '91';
+dialCodeInput.addEventListener('change', () => {
+  dialCodeInput.value = dialCode();
+  localStorage.setItem(DIAL_CODE_KEY, dialCodeInput.value);
+  render();
+});
+
+saveAllBtn.addEventListener('click', () => {
+  const entries = [...found.entries()].map(([key, display]) => [key, display, display]);
+  if (entries.length) downloadVCard('scanned-numbers.vcf', entries);
+});
+
+clearBtn.addEventListener('click', () => {
+  found.clear();
+  render();
+});
 
 document.querySelector('.file').addEventListener('click', () => fileInput.click());
 

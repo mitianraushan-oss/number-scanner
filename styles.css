@@ -97,13 +97,39 @@ button.primary { background: var(--accent); color: var(--accent-ink); border-col
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 
-.results h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); font-weight: 600; }
+.results-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.results h2 { font-size: 15px; margin: 0; color: var(--muted); font-weight: 600; }
 
-.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.cc {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.cc input {
+  width: 42px;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+}
+
+.bulk { display: flex; gap: 10px; margin-bottom: 12px; }
+.bulk[hidden] { display: none; }
+.bulk button { font-size: 14px; padding: 10px 12px; }
+
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 
 .list li {
-  display: flex;
-  align-items: center;
+  display: grid;
   gap: 10px;
   background: var(--panel);
   border: 1px solid var(--line);
@@ -111,16 +137,39 @@ button.on { background: var(--accent); color: var(--accent-ink); border-color: t
   padding: 12px;
 }
 
-.num { flex: 1; font-size: 20px; letter-spacing: 1px; font-variant-numeric: tabular-nums; word-break: break-all; }
+.num-row { display: flex; align-items: center; gap: 10px; }
 
-.list a, .list button {
+.num { flex: 1; font-size: 22px; letter-spacing: 1px; font-variant-numeric: tabular-nums; word-break: break-all; }
+
+.remove {
   flex: 0 0 auto;
-  padding: 10px 12px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
   font-size: 14px;
-  text-decoration: none;
+  color: var(--muted);
+  background: transparent;
 }
 
-.list a.call { background: var(--accent); color: var(--accent-ink); border: 1px solid transparent; border-radius: 12px; font-weight: 700; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.actions a,
+.actions button {
+  flex: 0 0 auto;
+  padding: 9px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #1c2440;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.actions a.call { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.actions a.wa { background: #25d366; color: #04240f; border-color: transparent; }
 
 .empty { color: var(--muted); font-size: 14px; }
 
