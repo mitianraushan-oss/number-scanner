@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1020" />
+<title>Number Scanner</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="bar">
+    <h1>Number Scanner</h1>
+    <span id="status" class="status">idle</span>
+  </header>
+
+  <main>
+    <section class="stage">
+      <video id="video" playsinline muted autoplay></video>
+      <div class="reticle"><span>Align the number inside this box</span></div>
+      <canvas id="canvas" hidden></canvas>
+    </section>
+
+    <section class="controls">
+      <button id="startBtn" class="primary">Start camera</button>
+      <button id="scanBtn" disabled>Scan once</button>
+      <button id="liveBtn" disabled>Auto scan: off</button>
+      <label class="file">
+        Pick image
+        <input id="fileInput" type="file" accept="image/*" capture="environment" hidden />
+      </label>
+    </section>
+
+    <section class="results">
+      <h2>Detected numbers</h2>
+      <ul id="list" class="list"></ul>
+      <p id="empty" class="empty">Nothing yet. Point the camera at a phone number and tap <b>Scan once</b>.</p>
+    </section>
+
+    <details class="raw">
+      <summary>Raw recognized text</summary>
+      <pre id="rawText"></pre>
+    </details>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
