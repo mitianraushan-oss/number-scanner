@@ -25,6 +25,8 @@ const clearBtn = document.getElementById('clearBtn');
 const CROP = { x: 0.08, y: 0.38, w: 0.84, h: 0.24 };
 const LIVE_INTERVAL_MS = 2000;
 const DIAL_CODE_KEY = 'number-scanner.dialCode';
+const PSM_AUTO = '3';
+const PSM_SINGLE_LINE = '7';
 
 let stream = null;
 let worker = null;
@@ -33,6 +35,7 @@ let liveTimer = null;
 let facing = 'environment';
 let sourceMode = null; // 'camera' | 'screen'
 let torchOn = false;
+let activePsm = PSM_AUTO;
 const found = new Map(); // normalized number -> display text
 
 function setStatus(text) {
@@ -178,31 +181,58 @@ function grabFrame() {
   return canvas;
 }
 
-/** Grayscale + hard threshold: small screen digits read far better after this. */
+/** Local (adaptive) threshold. A global one collapses when paper is unevenly lit. */
 function boostContrast(ctx, w, h) {
   const img = ctx.getImageData(0, 0, w, h);
   const d = img.data;
-  let sum = 0;
-  for (let i = 0; i < d.length; i += 4) {
-    const g = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-    d[i] = d[i + 1] = d[i + 2] = g;
-    sum += g;
+  const gray = new Float64Array(w * h);
+  for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+    gray[p] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
   }
-  const mean = sum / (d.length / 4);
-  for (let i = 0; i < d.length; i += 4) {
-    const v = d[i] > mean * 0.92 ? 255 : 0;
-    d[i] = d[i + 1] = d[i + 2] = v;
+
+  // Integral image gives each pixel's neighbourhood average in constant time.
+  const iw = w + 1;
+  const integral = new Float64Array(iw * (h + 1));
+  for (let y = 0; y < h; y++) {
+    let rowSum = 0;
+    for (let x = 0; x < w; x++) {
+      rowSum += gray[y * w + x];
+      integral[(y + 1) * iw + (x + 1)] = integral[y * iw + (x + 1)] + rowSum;
+    }
+  }
+
+  const radius = Math.max(8, Math.round(Math.min(w, h) / 16));
+  const T = 0.86;
+  for (let y = 0; y < h; y++) {
+    const y0 = Math.max(0, y - radius);
+    const y1 = Math.min(h - 1, y + radius);
+    for (let x = 0; x < w; x++) {
+      const x0 = Math.max(0, x - radius);
+      const x1 = Math.min(w - 1, x + radius);
+      const count = (x1 - x0 + 1) * (y1 - y0 + 1);
+      const sum =
+        integral[(y1 + 1) * iw + (x1 + 1)] -
+        integral[y0 * iw + (x1 + 1)] -
+        integral[(y1 + 1) * iw + x0] +
+        integral[y0 * iw + x0];
+      const i = (y * w + x) * 4;
+      d[i] = d[i + 1] = d[i + 2] = gray[y * w + x] * count > sum * T ? 255 : 0;
+    }
   }
   ctx.putImageData(img, 0, 0);
 }
 
-async function recognize(source) {
+async function recognize(source, psm = PSM_AUTO) {
   if (busy) return;
   busy = true;
   scanBtn.disabled = true;
   setStatus('scanning…');
   try {
     const w = await getWorker();
+    if (psm !== activePsm) {
+      await w.setParameters({ tessedit_pageseg_mode: psm });
+      activePsm = psm;
+    }
     const { data } = await w.recognize(source);
     rawEl.textContent = (data.text || '').trim() || '(nothing recognized)';
     const numbers = extractNumbers(data.text || '');
@@ -426,7 +456,7 @@ function toggleLive() {
   }
   liveTimer = setInterval(() => {
     const frame = grabFrame();
-    if (frame) recognize(frame);
+    if (frame) recognize(frame, framePsm());
   }, LIVE_INTERVAL_MS);
   liveBtn.textContent = 'Auto scan: on';
   liveBtn.classList.add('on');
@@ -441,9 +471,14 @@ if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
   screenBtn.addEventListener('click', startScreenCapture);
 }
 
+/** The reticle crop holds one line of digits; a whole screen needs page layout analysis. */
+function framePsm() {
+  return sourceMode === 'screen' ? PSM_AUTO : PSM_SINGLE_LINE;
+}
+
 scanBtn.addEventListener('click', () => {
   const frame = grabFrame();
-  if (frame) recognize(frame);
+  if (frame) recognize(frame, framePsm());
 });
 
 liveBtn.addEventListener('click', toggleLive);

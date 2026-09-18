@@ -69,6 +69,8 @@ scanned number has no country code of its own. It is remembered between visits.
 - The **Flash** button only appears when the active camera actually reports a torch. That means Android Chrome with the back camera; iOS Safari and front cameras do not expose it, so the button stays hidden.
 - Saving a contact goes through a `.vcf` download rather than writing to your address book directly — browsers have no API for that. Tapping the downloaded file imports it.
 - OCR runs entirely in the browser (Tesseract.js). Nothing is uploaded anywhere.
+- **Handwriting is hit and miss.** Tesseract is trained on printed text. Clearly separated, upright digits on plain paper often work; joined, slanted or scruffy writing usually will not. Printed numbers are far more reliable.
+- The image is adaptively thresholded before OCR, so shadows and uneven lighting on paper no longer wreck the read.
 - Digits `0/O` and `1/l/I` are commonly confused by OCR, so they are auto-corrected to digits. Check the number before calling.
 - Accepted numbers are 7–15 digits, optional leading `+`, with spaces/dashes/brackets tolerated.
 
@@ -79,4 +81,5 @@ scanned number has no country code of its own. It is remembered between visits.
 | Scan box size/position | `CROP` in [app.js](app.js) — must match `.reticle` in [styles.css](styles.css) |
 | Auto-scan speed | `LIVE_INTERVAL_MS` in [app.js](app.js) |
 | Number length rules | `extractNumbers()` in [app.js](app.js) |
+| Thresholding strength | `T` and `radius` in `boostContrast()` in [app.js](app.js) |
 | WhatsApp number format | `toWhatsAppNumber()` in [app.js](app.js) |
