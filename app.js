@@ -13,6 +13,7 @@ const screenBtn = document.getElementById('screenBtn');
 const scanBtn = document.getElementById('scanBtn');
 const liveBtn = document.getElementById('liveBtn');
 const fileInput = document.getElementById('fileInput');
+const pickBtn = document.getElementById('pickBtn');
 const stageEl = document.querySelector('.stage');
 const reticleEl = document.getElementById('reticle');
 const dialCodeInput = document.getElementById('dialCode');
@@ -464,7 +465,7 @@ clearBtn.addEventListener('click', () => {
   render();
 });
 
-document.querySelector('.file').addEventListener('click', () => fileInput.click());
+pickBtn.addEventListener('click', () => fileInput.click());
 
 fileInput.addEventListener('change', () => {
   const file = fileInput.files && fileInput.files[0];
