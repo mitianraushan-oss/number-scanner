@@ -14,6 +14,8 @@ const scanBtn = document.getElementById('scanBtn');
 const liveBtn = document.getElementById('liveBtn');
 const fileInput = document.getElementById('fileInput');
 const pickBtn = document.getElementById('pickBtn');
+const saveShotBtn = document.getElementById('saveShotBtn');
+const stillEl = document.getElementById('still');
 const stageEl = document.querySelector('.stage');
 const reticleEl = document.getElementById('reticle');
 const dialCodeInput = document.getElementById('dialCode');
@@ -33,9 +35,11 @@ let worker = null;
 let busy = false;
 let liveTimer = null;
 let facing = 'environment';
-let sourceMode = null; // 'camera' | 'screen'
+let sourceMode = null; // 'camera' | 'screen' | 'still'
 let torchOn = false;
 let activePsm = PSM_AUTO;
+let stillUrl = null;
+let stillName = 'scan.jpg';
 const found = new Map(); // normalized number -> display text
 
 function setStatus(text) {
@@ -52,6 +56,57 @@ async function getWorker() {
   });
   setStatus('ready');
   return worker;
+}
+
+/** A photo or screenshot becomes the active source, so it can be previewed, re-scanned and saved. */
+async function useStill(file) {
+  try {
+    setStatus('loading image…');
+    const url = URL.createObjectURL(file);
+    stillEl.src = url;
+    await stillEl.decode();
+    if (stillUrl) URL.revokeObjectURL(stillUrl);
+    stillUrl = url;
+    stillName = file.name && file.name !== 'image.png' ? file.name : `scan-${Date.now()}.png`;
+
+    stopLive();
+    stillEl.hidden = false;
+    saveShotBtn.hidden = false;
+    sourceMode = 'still';
+    stageEl.classList.add('has-source');
+    stageEl.classList.remove('screen-mode');
+    reticleEl.hidden = true;
+    scanBtn.disabled = false;
+    liveBtn.disabled = true;
+    flipBtn.disabled = true;
+    startBtn.disabled = false;
+    startBtn.textContent = 'Back to camera';
+
+    await recognize(stillFrame(), [PSM_AUTO, PSM_SINGLE_LINE]);
+  } catch {
+    setStatus('could not read that image');
+  }
+}
+
+/** Normalises the photo to a size Tesseract reads best, then adaptively thresholds it. */
+function stillFrame() {
+  const iw = stillEl.naturalWidth;
+  const ih = stillEl.naturalHeight;
+  // Upscale small crops, shrink huge photos: OCR peaks around a 1800px long edge.
+  const scale = Math.min(2, Math.max(0.25, 1800 / Math.max(iw, ih)));
+  canvas.width = Math.round(iw * scale);
+  canvas.height = Math.round(ih * scale);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(stillEl, 0, 0, canvas.width, canvas.height);
+  boostContrast(ctx, canvas.width, canvas.height);
+  return canvas;
+}
+
+function clearStill() {
+  stillEl.hidden = true;
+  saveShotBtn.hidden = true;
+  startBtn.textContent = 'Start camera';
 }
 
 function stopStream() {
@@ -87,6 +142,7 @@ async function toggleTorch() {
 
 function onSourceReady(mode) {
   sourceMode = mode;
+  clearStill();
   stageEl.classList.add('has-source');
   stageEl.classList.toggle('screen-mode', mode === 'screen');
   reticleEl.hidden = mode === 'screen';
@@ -222,20 +278,29 @@ function boostContrast(ctx, w, h) {
   ctx.putImageData(img, 0, 0);
 }
 
-async function recognize(source, psm = PSM_AUTO) {
-  if (busy) return;
+async function recognize(source, psms = [PSM_AUTO]) {
+  if (busy) {
+    setStatus('still scanning — try again');
+    return;
+  }
   busy = true;
   scanBtn.disabled = true;
   setStatus('scanning…');
   try {
     const w = await getWorker();
-    if (psm !== activePsm) {
-      await w.setParameters({ tessedit_pageseg_mode: psm });
-      activePsm = psm;
+    const texts = [];
+    // A still photo may be a tight crop of one line or a whole page, so try each layout.
+    for (const psm of psms) {
+      if (psm !== activePsm) {
+        await w.setParameters({ tessedit_pageseg_mode: psm });
+        activePsm = psm;
+      }
+      const { data } = await w.recognize(source);
+      texts.push((data.text || '').trim());
     }
-    const { data } = await w.recognize(source);
-    rawEl.textContent = (data.text || '').trim() || '(nothing recognized)';
-    const numbers = extractNumbers(data.text || '');
+    const text = texts.filter(Boolean).join('\n');
+    rawEl.textContent = text || '(nothing recognized)';
+    const numbers = extractNumbers(text);
     if (numbers.length) {
       addNumbers(numbers);
       setStatus(`found ${numbers.length}`);
@@ -248,7 +313,7 @@ async function recognize(source, psm = PSM_AUTO) {
     console.error(err);
   } finally {
     busy = false;
-    scanBtn.disabled = !stream;
+    scanBtn.disabled = !stream && sourceMode !== 'still';
   }
 }
 
@@ -473,11 +538,12 @@ if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
 
 /** The reticle crop holds one line of digits; a whole screen needs page layout analysis. */
 function framePsm() {
-  return sourceMode === 'screen' ? PSM_AUTO : PSM_SINGLE_LINE;
+  if (sourceMode === 'still') return [PSM_AUTO, PSM_SINGLE_LINE];
+  return sourceMode === 'camera' ? [PSM_SINGLE_LINE] : [PSM_AUTO];
 }
 
 scanBtn.addEventListener('click', () => {
-  const frame = grabFrame();
+  const frame = sourceMode === 'still' ? stillFrame() : grabFrame();
   if (frame) recognize(frame, framePsm());
 });
 
@@ -504,15 +570,26 @@ pickBtn.addEventListener('click', () => fileInput.click());
 
 fileInput.addEventListener('change', () => {
   const file = fileInput.files && fileInput.files[0];
-  if (file) recognize(file);
+  if (file) useStill(file);
   fileInput.value = '';
+});
+
+saveShotBtn.addEventListener('click', () => {
+  if (!stillUrl) return;
+  const a = document.createElement('a');
+  a.href = stillUrl;
+  a.download = stillName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setStatus('photo saved to downloads');
 });
 
 window.addEventListener('paste', (e) => {
   const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
   if (!item) return;
   e.preventDefault();
-  recognize(item.getAsFile());
+  useStill(item.getAsFile());
 });
 
 stageEl.addEventListener('dragover', (e) => {
@@ -526,7 +603,7 @@ stageEl.addEventListener('drop', (e) => {
   e.preventDefault();
   stageEl.classList.remove('dragover');
   const file = [...(e.dataTransfer?.files || [])].find((f) => f.type.startsWith('image/'));
-  if (file) recognize(file);
+  if (file) useStill(file);
 });
 
 if ('serviceWorker' in navigator) {

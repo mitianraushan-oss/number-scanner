@@ -17,6 +17,7 @@
   <main>
     <section class="stage">
       <video id="video" playsinline muted autoplay></video>
+      <img id="still" class="still" alt="Captured image" hidden />
       <div id="reticle" class="reticle"><span>Align the number inside this box</span></div>
       <div id="dropHint" class="drop-hint">Drop an image, or press Ctrl+V to paste a screenshot</div>
       <canvas id="canvas" hidden></canvas>
@@ -30,6 +31,7 @@
       <button id="scanBtn" disabled>Scan once</button>
       <button id="liveBtn" disabled>Auto scan: off</button>
       <button id="pickBtn">Pick image</button>
+      <button id="saveShotBtn" hidden>Save photo</button>
       <input id="fileInput" type="file" accept="image/*" hidden />
     </section>
 

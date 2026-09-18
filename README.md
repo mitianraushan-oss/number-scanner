@@ -44,6 +44,18 @@ Then tap the browser menu → **Add to Home screen** so it behaves like a real a
    **Save all to contacts** exports every scanned number as one `.vcf` file.
 5. No camera? Use **Pick image** to OCR a screenshot or gallery photo.
 
+## Working from a photo
+
+After **Pick image** (or a paste or drop) the picture stays on screen as the active source:
+
+- it is scanned immediately, and **Scan once** re-runs OCR on it
+- **Save photo** downloads the shot — useful when a photo taken through the picker never reaches your gallery
+- **Back to camera** returns to the live view
+
+Photos are scanned twice, once assuming a whole page and once assuming a single line, and the results are merged — so both a tight crop and a full page work.
+
+**Keep the phone square to the paper.** Tilt hurts accuracy far more than poor lighting does.
+
 ## Scanning on a laptop
 
 A laptop webcam faces you, not your other windows — so don't use the camera at all. Four ways in:
