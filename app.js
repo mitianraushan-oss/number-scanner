@@ -208,6 +208,18 @@ async function startScreenCapture() {
   }
 }
 
+/** The preview is object-fit:cover, so only this part of the frame is actually on screen. */
+function visibleRect(vw, vh) {
+  const stage = stageEl.getBoundingClientRect();
+  const stageAspect = stage.width / stage.height;
+  const videoAspect = vw / vh;
+  let w = vw;
+  let h = vh;
+  if (videoAspect > stageAspect) w = vh * stageAspect;
+  else h = vw / stageAspect;
+  return { x: (vw - w) / 2, y: (vh - h) / 2, w, h };
+}
+
 /** Draws the frame: the reticle crop for a camera, the whole picture for a screen. */
 function grabFrame() {
   const vw = video.videoWidth;
@@ -224,14 +236,17 @@ function grabFrame() {
     return canvas;
   }
 
-  const sx = Math.round(vw * CROP.x);
-  const sy = Math.round(vh * CROP.y);
-  const sw = Math.round(vw * CROP.w);
-  const sh = Math.round(vh * CROP.h);
-  const scale = 2;
+  // Map the reticle onto what the user can see, not onto the full sensor frame.
+  const vis = visibleRect(vw, vh);
+  const sx = Math.round(vis.x + vis.w * CROP.x);
+  const sy = Math.round(vis.y + vis.h * CROP.y);
+  const sw = Math.round(vis.w * CROP.w);
+  const sh = Math.round(vis.h * CROP.h);
+  const scale = Math.min(3, Math.max(1, 1600 / sw));
 
-  canvas.width = sw * scale;
-  canvas.height = sh * scale;
+  canvas.width = Math.round(sw * scale);
+  canvas.height = Math.round(sh * scale);
+  ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
   boostContrast(ctx, canvas.width, canvas.height);
   return canvas;
@@ -537,9 +552,10 @@ if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
 }
 
 /** The reticle crop holds one line of digits; a whole screen needs page layout analysis. */
+/** Single-line suits the tight reticle crop, but keep the page-layout pass as a safety net. */
 function framePsm() {
-  if (sourceMode === 'still') return [PSM_AUTO, PSM_SINGLE_LINE];
-  return sourceMode === 'camera' ? [PSM_SINGLE_LINE] : [PSM_AUTO];
+  if (sourceMode === 'screen') return [PSM_AUTO];
+  return [PSM_SINGLE_LINE, PSM_AUTO];
 }
 
 scanBtn.addEventListener('click', () => {

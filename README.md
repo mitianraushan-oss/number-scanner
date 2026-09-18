@@ -91,6 +91,7 @@ scanned number has no country code of its own. It is remembered between visits.
 | What | Where |
 | --- | --- |
 | Scan box size/position | `CROP` in [app.js](app.js) — must match `.reticle` in [styles.css](styles.css) |
+| Preview-to-frame mapping | `visibleRect()` in [app.js](app.js) — keeps the green box aligned with what is scanned |
 | Auto-scan speed | `LIVE_INTERVAL_MS` in [app.js](app.js) |
 | Number length rules | `extractNumbers()` in [app.js](app.js) |
 | Thresholding strength | `T` and `radius` in `boostContrast()` in [app.js](app.js) |
