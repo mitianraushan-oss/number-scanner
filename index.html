@@ -17,12 +17,15 @@
   <main>
     <section class="stage">
       <video id="video" playsinline muted autoplay></video>
-      <div class="reticle"><span>Align the number inside this box</span></div>
+      <div id="reticle" class="reticle"><span>Align the number inside this box</span></div>
+      <div id="dropHint" class="drop-hint">Drop an image, or press Ctrl+V to paste a screenshot</div>
       <canvas id="canvas" hidden></canvas>
     </section>
 
     <section class="controls">
       <button id="startBtn" class="primary">Start camera</button>
+      <button id="flipBtn" disabled>Flip camera</button>
+      <button id="screenBtn" hidden>Scan a screen</button>
       <button id="scanBtn" disabled>Scan once</button>
       <button id="liveBtn" disabled>Auto scan: off</button>
       <label class="file">

@@ -7,9 +7,13 @@ const listEl = document.getElementById('list');
 const emptyEl = document.getElementById('empty');
 const rawEl = document.getElementById('rawText');
 const startBtn = document.getElementById('startBtn');
+const flipBtn = document.getElementById('flipBtn');
+const screenBtn = document.getElementById('screenBtn');
 const scanBtn = document.getElementById('scanBtn');
 const liveBtn = document.getElementById('liveBtn');
 const fileInput = document.getElementById('fileInput');
+const stageEl = document.querySelector('.stage');
+const reticleEl = document.getElementById('reticle');
 const dialCodeInput = document.getElementById('dialCode');
 const bulkEl = document.getElementById('bulk');
 const saveAllBtn = document.getElementById('saveAllBtn');
@@ -24,6 +28,8 @@ let stream = null;
 let worker = null;
 let busy = false;
 let liveTimer = null;
+let facing = 'environment';
+let sourceMode = null; // 'camera' | 'screen'
 const found = new Map(); // normalized number -> display text
 
 function setStatus(text) {
@@ -42,35 +48,92 @@ async function getWorker() {
   return worker;
 }
 
+function stopStream() {
+  if (stream) stream.getTracks().forEach((t) => t.stop());
+  stream = null;
+}
+
+function onSourceReady(mode) {
+  sourceMode = mode;
+  stageEl.classList.add('has-source');
+  stageEl.classList.toggle('screen-mode', mode === 'screen');
+  reticleEl.hidden = mode === 'screen';
+  scanBtn.disabled = false;
+  liveBtn.disabled = false;
+  flipBtn.disabled = mode !== 'camera';
+  getWorker();
+}
+
 async function startCamera() {
   try {
     setStatus('opening camera…');
+    stopStream();
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } },
       audio: false,
     });
     video.srcObject = stream;
     await video.play();
-    scanBtn.disabled = false;
-    liveBtn.disabled = false;
     startBtn.textContent = 'Camera on';
     startBtn.disabled = true;
-    setStatus('camera ready');
-    getWorker();
+    onSourceReady('camera');
+    setStatus(facing === 'environment' ? 'back camera' : 'front camera');
   } catch (err) {
     setStatus('camera blocked');
     alert(
       'Could not open the camera: ' + err.message +
-      '\n\nThe camera only works on https:// or http://localhost. You can still use "Pick image".'
+      '\n\nThe camera only works on https:// or http://localhost. You can still use "Scan a screen", "Pick image", or paste a screenshot.'
     );
   }
 }
 
-/** Draws the framed region of the video (upscaled + contrast boosted) onto the canvas. */
+async function flipCamera() {
+  facing = facing === 'environment' ? 'user' : 'environment';
+  startBtn.disabled = false;
+  await startCamera();
+}
+
+/** Screen capture: on a laptop this reads another window directly, no camera needed. */
+async function startScreenCapture() {
+  try {
+    setStatus('choose a window…');
+    stopStream();
+    stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { ideal: 5 } },
+      audio: false,
+    });
+    video.srcObject = stream;
+    await video.play();
+    stream.getVideoTracks()[0].addEventListener('ended', () => {
+      stopLive();
+      stageEl.classList.remove('has-source', 'screen-mode');
+      scanBtn.disabled = true;
+      liveBtn.disabled = true;
+      sourceMode = null;
+      setStatus('screen sharing stopped');
+    });
+    onSourceReady('screen');
+    setStatus('screen ready — tap Scan once');
+  } catch (err) {
+    setStatus(err.name === 'NotAllowedError' ? 'ready' : 'screen capture failed');
+  }
+}
+
+/** Draws the frame: the reticle crop for a camera, the whole picture for a screen. */
 function grabFrame() {
   const vw = video.videoWidth;
   const vh = video.videoHeight;
   if (!vw || !vh) return null;
+
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  if (sourceMode === 'screen') {
+    // Screen pixels are already sharp and high-contrast, so use them untouched.
+    canvas.width = vw;
+    canvas.height = vh;
+    ctx.drawImage(video, 0, 0);
+    return canvas;
+  }
 
   const sx = Math.round(vw * CROP.x);
   const sy = Math.round(vh * CROP.y);
@@ -80,7 +143,6 @@ function grabFrame() {
 
   canvas.width = sw * scale;
   canvas.height = sh * scale;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
   boostContrast(ctx, canvas.width, canvas.height);
   return canvas;
@@ -318,12 +380,17 @@ function render() {
   }
 }
 
+function stopLive() {
+  if (!liveTimer) return;
+  clearInterval(liveTimer);
+  liveTimer = null;
+  liveBtn.textContent = 'Auto scan: off';
+  liveBtn.classList.remove('on');
+}
+
 function toggleLive() {
   if (liveTimer) {
-    clearInterval(liveTimer);
-    liveTimer = null;
-    liveBtn.textContent = 'Auto scan: off';
-    liveBtn.classList.remove('on');
+    stopLive();
     setStatus('ready');
     return;
   }
@@ -336,6 +403,12 @@ function toggleLive() {
 }
 
 startBtn.addEventListener('click', startCamera);
+flipBtn.addEventListener('click', flipCamera);
+
+if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+  screenBtn.hidden = false;
+  screenBtn.addEventListener('click', startScreenCapture);
+}
 
 scanBtn.addEventListener('click', () => {
   const frame = grabFrame();
@@ -367,6 +440,27 @@ fileInput.addEventListener('change', () => {
   const file = fileInput.files && fileInput.files[0];
   if (file) recognize(file);
   fileInput.value = '';
+});
+
+window.addEventListener('paste', (e) => {
+  const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith('image/'));
+  if (!item) return;
+  e.preventDefault();
+  recognize(item.getAsFile());
+});
+
+stageEl.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  stageEl.classList.add('dragover');
+});
+
+stageEl.addEventListener('dragleave', () => stageEl.classList.remove('dragover'));
+
+stageEl.addEventListener('drop', (e) => {
+  e.preventDefault();
+  stageEl.classList.remove('dragover');
+  const file = [...(e.dataTransfer?.files || [])].find((f) => f.type.startsWith('image/'));
+  if (file) recognize(file);
 });
 
 if ('serviceWorker' in navigator) {

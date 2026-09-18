@@ -27,7 +27,7 @@ Then tap the browser menu → **Add to Home screen** so it behaves like a real a
 
 ## How to scan
 
-1. **Start camera**
+1. **Start camera** — tap **Flip camera** to switch between the back and front lens.
 2. Frame the number inside the dashed green box.
 3. **Scan once** — or turn on **Auto scan** to read continuously every 2 s.
 4. Act on each number with one tap:
@@ -43,6 +43,19 @@ Then tap the browser menu → **Add to Home screen** so it behaves like a real a
 
    **Save all to contacts** exports every scanned number as one `.vcf` file.
 5. No camera? Use **Pick image** to OCR a screenshot or gallery photo.
+
+## Scanning on a laptop
+
+A laptop webcam faces you, not your other windows — so don't use the camera at all. Four ways in:
+
+| Way | How |
+| --- | --- |
+| **Scan a screen** | Click it, then pick any window, tab or whole screen. The page reads those pixels directly — sharper than any camera. Auto scan keeps re-reading as the window changes. |
+| **Paste** | Take a screenshot (`Win+Shift+S`) and press `Ctrl+V` anywhere on the page |
+| **Drag & drop** | Drop an image file onto the camera area |
+| **Pick image** | Normal file picker |
+
+**Scan a screen** ignores the green reticle and reads the whole capture, so several numbers can be picked up at once. The button hides itself on browsers without `getDisplayMedia` (most mobile browsers) — use the camera there.
 
 ## Country code
 
