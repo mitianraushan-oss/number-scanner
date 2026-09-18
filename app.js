@@ -8,6 +8,7 @@ const emptyEl = document.getElementById('empty');
 const rawEl = document.getElementById('rawText');
 const startBtn = document.getElementById('startBtn');
 const flipBtn = document.getElementById('flipBtn');
+const torchBtn = document.getElementById('torchBtn');
 const screenBtn = document.getElementById('screenBtn');
 const scanBtn = document.getElementById('scanBtn');
 const liveBtn = document.getElementById('liveBtn');
@@ -30,6 +31,7 @@ let busy = false;
 let liveTimer = null;
 let facing = 'environment';
 let sourceMode = null; // 'camera' | 'screen'
+let torchOn = false;
 const found = new Map(); // normalized number -> display text
 
 function setStatus(text) {
@@ -51,6 +53,32 @@ async function getWorker() {
 function stopStream() {
   if (stream) stream.getTracks().forEach((t) => t.stop());
   stream = null;
+  torchOn = false;
+  torchBtn.hidden = true;
+  torchBtn.textContent = 'Flash: off';
+  torchBtn.classList.remove('on');
+}
+
+/** The torch is a camera-track capability — usually back camera on Android only. */
+function setupTorch() {
+  const track = stream && stream.getVideoTracks()[0];
+  if (!track || !track.getCapabilities) return;
+  const supported = !!track.getCapabilities().torch;
+  torchBtn.hidden = !supported;
+}
+
+async function toggleTorch() {
+  const track = stream && stream.getVideoTracks()[0];
+  if (!track) return;
+  try {
+    torchOn = !torchOn;
+    await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+    torchBtn.textContent = torchOn ? 'Flash: on' : 'Flash: off';
+    torchBtn.classList.toggle('on', torchOn);
+  } catch {
+    torchOn = false;
+    setStatus('flash unavailable');
+  }
 }
 
 function onSourceReady(mode) {
@@ -76,6 +104,7 @@ async function startCamera() {
     await video.play();
     startBtn.textContent = 'Camera on';
     startBtn.disabled = true;
+    setupTorch();
     onSourceReady('camera');
     setStatus(facing === 'environment' ? 'back camera' : 'front camera');
   } catch (err) {
@@ -404,6 +433,7 @@ function toggleLive() {
 
 startBtn.addEventListener('click', startCamera);
 flipBtn.addEventListener('click', flipCamera);
+torchBtn.addEventListener('click', toggleTorch);
 
 if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
   screenBtn.hidden = false;

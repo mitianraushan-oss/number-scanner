@@ -1,4 +1,4 @@
-const CACHE = 'number-scanner-v3';
+const CACHE = 'number-scanner-v4';
 const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json'];
 
 self.addEventListener('install', (e) => {

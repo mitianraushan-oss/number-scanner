@@ -28,7 +28,7 @@ Then tap the browser menu → **Add to Home screen** so it behaves like a real a
 ## How to scan
 
 1. **Start camera** — tap **Flip camera** to switch between the back and front lens.
-2. Frame the number inside the dashed green box.
+2. Frame the number inside the dashed green box. In the dark, tap **Flash** to switch on the torch.
 3. **Scan once** — or turn on **Auto scan** to read continuously every 2 s.
 4. Act on each number with one tap:
 
@@ -66,6 +66,7 @@ scanned number has no country code of its own. It is remembered between visits.
 ## Notes
 
 - `tel:` pre-fills the dialer; it never places a call by itself. That is an OS rule on both Android and iOS — no browser or app can auto-dial without you pressing the call button.
+- The **Flash** button only appears when the active camera actually reports a torch. That means Android Chrome with the back camera; iOS Safari and front cameras do not expose it, so the button stays hidden.
 - Saving a contact goes through a `.vcf` download rather than writing to your address book directly — browsers have no API for that. Tapping the downloaded file imports it.
 - OCR runs entirely in the browser (Tesseract.js). Nothing is uploaded anywhere.
 - Digits `0/O` and `1/l/I` are commonly confused by OCR, so they are auto-corrected to digits. Check the number before calling.

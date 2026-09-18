@@ -115,6 +115,7 @@ button, .file {
 button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.on { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+#torchBtn.on { background: #ffc73a; color: #2a1d00; }
 
 .results-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .results h2 { font-size: 15px; margin: 0; color: var(--muted); font-weight: 600; }
