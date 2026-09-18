@@ -291,6 +291,43 @@ function boostContrast(ctx, w, h) {
     }
   }
   ctx.putImageData(img, 0, 0);
+  removeRuledLines(ctx, w, h);
+}
+
+/** Erases ruled/underline strokes, which OCR otherwise reads as extra digits. */
+function removeRuledLines(ctx, w, h) {
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const isDark = (x, y) => d[(y * w + x) * 4] < 128;
+  const minRun = Math.round(w * 0.3);
+  const gap = Math.max(2, Math.round(h * 0.006));
+
+  for (let y = gap; y < h - gap; y++) {
+    let start = -1;
+    for (let x = 0; x <= w; x++) {
+      const dark = x < w && isDark(x, y);
+      if (dark && start < 0) start = x;
+      if (!dark && start >= 0) {
+        const len = x - start;
+        // Only thin runs are rules; solid dark blocks must survive untouched.
+        if (len > minRun) {
+          let thin = true;
+          for (let s = 1; s <= 5 && thin; s++) {
+            const px = start + Math.round((len * s) / 6);
+            if (isDark(px, y - gap) && isDark(px, y + gap)) thin = false;
+          }
+          if (thin) {
+            for (let k = start; k < x; k++) {
+              const j = (y * w + k) * 4;
+              d[j] = d[j + 1] = d[j + 2] = 255;
+            }
+          }
+        }
+        start = -1;
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
 }
 
 async function recognize(source, psms = [PSM_AUTO]) {

@@ -83,6 +83,7 @@ scanned number has no country code of its own. It is remembered between visits.
 - OCR runs entirely in the browser (Tesseract.js). Nothing is uploaded anywhere.
 - **Handwriting is hit and miss.** Tesseract is trained on printed text. Clearly separated, upright digits on plain paper often work; joined, slanted or scruffy writing usually will not. Printed numbers are far more reliable.
 - The image is adaptively thresholded before OCR, so shadows and uneven lighting on paper no longer wreck the read.
+- Ruled lines on notepaper are detected and erased first, otherwise OCR reads them as extra digits. Only thin full-width strokes are removed, so solid dark backgrounds survive.
 - Digits `0/O` and `1/l/I` are commonly confused by OCR, so they are auto-corrected to digits. Check the number before calling.
 - Accepted numbers are 7–15 digits, optional leading `+`, with spaces/dashes/brackets tolerated.
 
